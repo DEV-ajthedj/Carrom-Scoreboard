@@ -68,7 +68,7 @@ function throwHumanReadableFirebaseError(
 }
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCqFT43zEqJQ_uqat5MYkxOQNVT0LRdpG4",
+    apiKey: process.env.API_KEY_FIREBASE,
     authDomain: "carrom-scoreboard.firebaseapp.com",
     projectId: "carrom-scoreboard",
     storageBucket: "carrom-scoreboard.firebasestorage.app",
