@@ -22,20 +22,7 @@ export async function signUp(
     displayName: string
 ) {
     try {
-        const normalizedEmail = email.trim().toLowerCase();
-        const normalizedDisplayName = displayName.trim().toLowerCase();
-        const isAdmin =
-            normalizedEmail === "admin@caca.com" && normalizedDisplayName === "admin";
-
-        if (normalizedEmail === "admin@caca.com" && normalizedDisplayName !== "admin") {
-            throw new Error('Admin account must use display name "admin"');
-        }
-
-        if (normalizedDisplayName === "admin" && normalizedEmail !== "admin@caca.com") {
-            throw new Error('Display name "admin" is reserved for admin@caca.com');
-        }
-
-        const displayNameToSave = isAdmin ? "admin" : displayName.trim();
+        const displayNameToSave = displayName.trim();
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
@@ -50,7 +37,6 @@ export async function signUp(
             displayName: displayNameToSave,
             uid: user.uid,
             points: 0,
-            isAdmin: isAdmin,
             createdAt: new Date().toISOString(),
         });
         
@@ -325,8 +311,27 @@ export async function getUserProfile(userId: string): Promise<any | null> {
 // Check if user is admin
 export async function isUserAdmin(userId: string): Promise<boolean> {
     try {
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.uid === userId) {
+            const authEmail = String(currentUser.email || "").trim().toLowerCase();
+            const authDisplayName = String(currentUser.displayName || "")
+                .trim()
+                .toLowerCase();
+
+            if (authEmail === "admin@caca.com" && authDisplayName === "admin") {
+                return true;
+            }
+        }
+
         const profile = await getUserProfile(userId);
-        return profile?.isAdmin === true;
+        if (!profile) {
+            return false;
+        }
+
+        const normalizedEmail = String(profile.email || "").trim().toLowerCase();
+        const normalizedDisplayName = String(profile.displayName || "").trim().toLowerCase();
+
+        return normalizedEmail === "admin@caca.com" && normalizedDisplayName === "admin";
     } catch (error) {
         console.error("Error checking admin status:", error);
         return false;
