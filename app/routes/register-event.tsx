@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import type { Route } from "./+types/register-event";
-import { getCurrentUser, getAllEvents, addUserToEvent, updateUserProfile } from "../src/firebase";
+import { getCurrentUser, getAllEvents, addUserToEvent, updateUserProfile, getHumanReadableFirebaseError } from "../src/firebase";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -37,6 +37,8 @@ export default function RegisterEventPage() {
     const [eventSearch, setEventSearch] = useState("");
     const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
     const eventSearchRef = useRef<HTMLDivElement>(null);
+    const isAlreadyRegisteredForSelectedEvent =
+        Boolean(user?.uid) && Boolean(selectedEvent?.players?.[user?.uid]);
 
     // Check user auth and fetch events
     useEffect(() => {
@@ -115,6 +117,12 @@ export default function RegisterEventPage() {
                 return;
             }
 
+            if (isAlreadyRegisteredForSelectedEvent) {
+                setError("You are already registered for this event.");
+                setLoading(false);
+                return;
+            }
+
             // Validate that the selected event is not in the past
             if (isPastEvent(selectedEvent.date)) {
                 setError("This event has already passed. Please select an upcoming event.");
@@ -133,15 +141,11 @@ export default function RegisterEventPage() {
                 displayName: user.displayName || user.email,
             });
 
-            // Show success message
-            alert("Successfully registered for the event!");
-            // Redirect to home after successful registration
-            setTimeout(() => {
-                navigate("/");
-            }, 1000);
-        } catch (err: any) {
+            // Redirect to home and show success toast there
+            navigate("/", { state: { flashMessage: "Successfully registered for the event!" } });
+        } catch (err) {
             setError(
-                err.message || "Failed to register. Please try again."
+                getHumanReadableFirebaseError(err, "Failed to register. Please try again.")
             );
         } finally {
             setLoading(false);
@@ -160,17 +164,31 @@ export default function RegisterEventPage() {
 
     return (
         <div className="caca-page min-h-screen flex items-center justify-center px-4 py-12">
+            <Link
+                to="/"
+                className="fixed top-5 left-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition hover:opacity-85"
+                style={{
+                    borderColor: "var(--caca-border)",
+                    backgroundColor: "var(--caca-surface)",
+                    color: "var(--caca-ink)",
+                }}
+            >
+                <span aria-hidden="true">←</span>
+                <span>Back to Home</span>
+            </Link>
             <div className="w-full max-w-md">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <h1
-                        className="text-5xl font-bold mb-2"
-                        style={{ fontFamily: "var(--caca-font-display)" }}
-                    >
-                        Register
-                    </h1>
+                    <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
+                        <h1
+                            className="text-5xl font-bold mb-2"
+                            style={{ fontFamily: "var(--caca-font-display)" }}
+                        >
+                            CACA
+                        </h1>
+                    </Link>
                     <p className="text-lg" style={{ color: "var(--caca-accent)" }}>
-                        Join a Carrom Event
+                        Register for an Event
                     </p>
                 </div>
 
@@ -192,10 +210,20 @@ export default function RegisterEventPage() {
                                 borderLeft: "4px solid var(--caca-accent)",
                             }}
                         >
-                            {error}
+                            <div className="flex items-center justify-between gap-3">
+                                <span>{error}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setError("")}
+                                    className="text-xs font-semibold hover:opacity-80"
+                                    aria-label="Dismiss notification"
+                                    style={{ color: "var(--caca-accent)" }}
+                                >
+                                    ×
+                                </button>
+                            </div>
                         </div>
                     )}
-
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Event Dropdown with Search */}
@@ -337,14 +365,25 @@ export default function RegisterEventPage() {
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            disabled={loading || events.length === 0}
+                            disabled={loading || events.length === 0 || isAlreadyRegisteredForSelectedEvent}
                             className="w-full py-2 px-4 rounded-md font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 mt-6"
                             style={{
                                 backgroundColor: "var(--caca-accent)",
                             }}
                         >
-                            {loading ? "Registering..." : events.length === 0 ? "No Upcoming Events" : "Register for Event"}
+                            {loading
+                                ? "Registering..."
+                                : events.length === 0
+                                ? "No Upcoming Events"
+                                : isAlreadyRegisteredForSelectedEvent
+                                ? "Already Registered"
+                                : "Register for Event"}
                         </button>
+                        {isAlreadyRegisteredForSelectedEvent && (
+                            <p className="text-xs mt-2" style={{ color: "var(--caca-ink-soft)" }}>
+                                You are already signed up for this event.
+                            </p>
+                        )}
                     </form>
                     {events.length === 0 && (
                         <p className="mt-4 text-sm text-center" style={{ color: "var(--caca-ink-soft)" }}>
@@ -352,13 +391,6 @@ export default function RegisterEventPage() {
                         </p>
                     )}
                 </div>
-
-                {/* Footer */}
-                <p className="text-center mt-6 text-sm" style={{ color: "var(--caca-ink-soft)" }}>
-                    <Link to="/" className="transition" style={{ color: "var(--caca-accent)" }}>
-                        Back to Home
-                    </Link>
-                </p>
             </div>
         </div>
     );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import type { Route } from "./+types/home";
 import {
     getCurrentUser,
@@ -31,6 +31,7 @@ const galleryTiles = [
 
 export default function Home() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [user, setUser] = useState<any>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -39,6 +40,9 @@ export default function Home() {
     const [rankings, setRankings] = useState<any[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
     const [rankingsLoading, setRankingsLoading] = useState(true);
+    const [logoutSuccess, setLogoutSuccess] = useState("");
+    const [showLogoutToast, setShowLogoutToast] = useState(false);
+    const [hideLogoutToast, setHideLogoutToast] = useState(false);
 
     useEffect(() => {
         const checkUser = async () => {
@@ -114,14 +118,56 @@ export default function Home() {
         fetchRankings();
     }, []);
 
+    useEffect(() => {
+        const flashMessage = (location.state as any)?.flashMessage;
+        if (flashMessage) {
+            setLogoutSuccess(flashMessage);
+            navigate(location.pathname, { replace: true, state: null });
+        }
+    }, [location.pathname, location.state, navigate]);
+
+    useEffect(() => {
+        if (!logoutSuccess) return;
+
+        setShowLogoutToast(false);
+        setHideLogoutToast(false);
+
+        const enterAnimationFrame = requestAnimationFrame(() => {
+            setShowLogoutToast(true);
+        });
+
+        const fadeTimer = setTimeout(() => {
+            setHideLogoutToast(true);
+        }, 3200);
+
+        const clearTimer = setTimeout(() => {
+            setLogoutSuccess("");
+            setShowLogoutToast(false);
+            setHideLogoutToast(false);
+        }, 4000);
+
+        return () => {
+            cancelAnimationFrame(enterAnimationFrame);
+            clearTimeout(fadeTimer);
+            clearTimeout(clearTimer);
+        };
+    }, [logoutSuccess]);
+
     const handleLogout = async () => {
         try {
             await logOut();
             setUser(null);
-            navigate("/");
+            setIsAdmin(false);
+            setLogoutSuccess("Logged out successfully!");
         } catch (error) {
             console.error("Error logging out:", error);
         }
+    };
+
+    const closeToast = () => {
+        setLogoutSuccess("");
+        setShowLogoutToast(false);
+        setHideLogoutToast(false);
     };
 
     return (
@@ -140,7 +186,7 @@ export default function Home() {
                     {user ? (
                         <>
                             <span className="flex items-center px-3 py-2 text-sm text-[var(--caca-ink-soft)]">
-                                Welcome, {user.displayName || user.email}
+                                Welcome, {user.displayName || user.email}!
                             </span>
                             {isAdmin && (
                                 <Link className="caca-btn caca-btn-secondary" to="/admin">
@@ -151,16 +197,13 @@ export default function Home() {
                                 onClick={handleLogout}
                                 className="caca-btn caca-btn-muted"
                             >
-                                Logout
+                                Log out
                             </button>
                         </>
                     ) : (
                         <>
                             <Link className="caca-btn caca-btn-muted" to="/login">
                                 Log in
-                            </Link>
-                            <Link className="caca-btn caca-btn-muted" to="/login">
-                                Sign up
                             </Link>
                         </>
                     )}
@@ -173,15 +216,48 @@ export default function Home() {
                 </nav>
             </header>
             </div>
+            {logoutSuccess && (
+                <div className="fixed top-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2">
+                    <div
+                        className={`rounded-xl border px-4 py-3 shadow-lg transition-all duration-500 ease-out ${
+                            showLogoutToast
+                                ? hideLogoutToast
+                                    ? "opacity-0 -translate-y-2"
+                                    : "opacity-100 translate-y-0"
+                                : "opacity-0 -translate-y-8"
+                        }`}
+                        style={{
+                            backgroundColor: "rgba(240, 253, 244, 0.98)",
+                            borderColor: "#22c55e",
+                            color: "#166534",
+                        }}
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <span>{logoutSuccess}</span>
+                            <button
+                                type="button"
+                                onClick={closeToast}
+                                className="text-sm font-semibold hover:opacity-80"
+                                aria-label="Dismiss notification"
+                                style={{ color: "#166534" }}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <section className="hero-shell" id="top">
                 <div className="mx-auto max-w-6xl px-4 pb-12 pt-6 sm:px-6 lg:px-8 lg:pb-16 lg:pt-8">
                     <div className="fade-up max-w-3xl">
                         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-[var(--caca-accent)]">
                             Official Home
                         </p>
-                        <h1 className="font-display text-6xl leading-none text-[var(--caca-ink)] sm:text-7xl md:text-8xl">
-                            CACA
-                        </h1>
+                        <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
+                            <h1 className="font-display text-6xl leading-none text-[var(--caca-ink)] sm:text-7xl md:text-8xl">
+                                CACA
+                            </h1>
+                        </Link>
                         <p className="mt-2 text-lg font-semibold text-[var(--caca-ink-soft)] sm:text-xl">
                             Capital Area Carrom Association
                         </p>

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Link } from "react-router";
 import type { Route } from "./+types/login";
-import { signUp, signIn } from "../src/firebase";
+import { signUp, signIn, getCurrentUser, getHumanReadableFirebaseError } from "../src/firebase";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -25,6 +25,17 @@ export default function LoginPage() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const redirectIfLoggedIn = async () => {
+            const currentUser = await getCurrentUser();
+            if (currentUser) {
+                navigate("/", { replace: true });
+            }
+        };
+
+        redirectIfLoggedIn();
+    }, [navigate]);
 
     const handleSignUp = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -61,8 +72,8 @@ export default function LoginPage() {
             setTimeout(() => {
                 navigate("/");
             }, 1000);
-        } catch (err: any) {
-            setError(err.message || "Failed to sign up. Please try again.");
+        } catch (err) {
+            setError(getHumanReadableFirebaseError(err, "Failed to sign up. Please try again."));
         } finally {
             setLoading(false);
         }
@@ -77,10 +88,10 @@ export default function LoginPage() {
             await signIn(email, password);
             // Redirect to home after successful log in
             setTimeout(() => {
-                navigate("/");
+                navigate("/", { state: { flashMessage: "Logged in successfully!" } });
             }, 1000);
-        } catch (err: any) {
-            setError(err.message || "Failed to log in. Please check your email and password.");
+        } catch (err) {
+            setError(getHumanReadableFirebaseError(err, "Failed to log in. Please check your email and password."));
         } finally {
             setLoading(false);
         }
@@ -88,6 +99,18 @@ export default function LoginPage() {
 
     return (
         <div className="caca-page min-h-screen flex items-center justify-center px-4 py-12">
+            <Link
+                to="/"
+                className="fixed top-5 left-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition hover:opacity-85"
+                style={{
+                    borderColor: "var(--caca-border)",
+                    backgroundColor: "var(--caca-surface)",
+                    color: "var(--caca-ink)",
+                }}
+            >
+                <span aria-hidden="true">←</span>
+                <span>Back to Home</span>
+            </Link>
             <div className="w-full max-w-md">
                 {/* Header */}
                 <div className="text-center mb-8">
@@ -177,7 +200,18 @@ export default function LoginPage() {
                                 borderLeft: "4px solid var(--caca-accent)",
                             }}
                         >
-                            {error}
+                            <div className="flex items-center justify-between gap-3">
+                                <span>{error}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setError("")}
+                                    className="text-xs font-semibold hover:opacity-80"
+                                    aria-label="Dismiss notification"
+                                    style={{ color: "var(--caca-accent)" }}
+                                >
+                                    ×
+                                </button>
+                            </div>
                         </div>
                     )}
 

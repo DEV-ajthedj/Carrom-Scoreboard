@@ -71,7 +71,7 @@ export default function Scoreboard() {
         try {
             await logOut();
             setUser(null);
-            navigate("/");
+            navigate("/", { state: { flashMessage: "Logged out successfully!" } });
         } catch (error) {
             console.error("Error logging out:", error);
         }
@@ -99,13 +99,13 @@ export default function Scoreboard() {
                         {user ? (
                             <>
                                 <span className="flex items-center px-3 py-2 text-sm text-[var(--caca-ink-soft)]">
-                                    Welcome, {user.email}
+                                    Welcome, {user.displayName || user.email}!
                                 </span>
                                 <button
                                     onClick={handleLogout}
                                     className="caca-btn caca-btn-muted"
                                 >
-                                    Logout
+                                    Log out
                                 </button>
                             </>
                         ) : (

@@ -3,6 +3,70 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 import { type User } from "firebase/auth";
 import { getDatabase, ref, push, set, get, onValue, update } from "firebase/database";
 
+const FIREBASE_ERROR_MESSAGES: Record<string, string> = {
+    "auth/email-already-in-use": "That email is already registered. Try logging in instead.",
+    "auth/invalid-email": "Please enter a valid email address.",
+    "auth/user-not-found": "No account was found with that email.",
+    "auth/wrong-password": "The password is incorrect. Please try again.",
+    "auth/invalid-credential": "Email or password is incorrect.",
+    "auth/weak-password": "Your password is too weak. Use at least 6 characters.",
+    "auth/too-many-requests": "Too many attempts. Please wait a bit and try again.",
+    "auth/network-request-failed": "Network issue detected. Check your internet connection and try again.",
+    "auth/user-disabled": "This account has been disabled. Please contact support.",
+    "permission-denied": "You do not have permission to perform this action.",
+    "database/permission-denied": "You do not have permission to access this data.",
+    "database/unavailable": "Service is temporarily unavailable. Please try again in a moment.",
+    "unavailable": "Service is temporarily unavailable. Please try again in a moment.",
+};
+
+const FIREBASE_CODE_PATTERN = /\(([a-z0-9-]+\/[a-z0-9-]+)\)\.?$/i;
+
+export function getHumanReadableFirebaseError(
+    error: unknown,
+    fallbackMessage = "Something went wrong. Please try again."
+): string {
+    if (!error) {
+        return fallbackMessage;
+    }
+
+    if (typeof error === "string") {
+        return error;
+    }
+
+    if (error instanceof Error) {
+        const possibleCode = (error as any).code as string | undefined;
+        if (possibleCode && FIREBASE_ERROR_MESSAGES[possibleCode]) {
+            return FIREBASE_ERROR_MESSAGES[possibleCode];
+        }
+
+        const codeFromMessage = error.message.match(FIREBASE_CODE_PATTERN)?.[1];
+        if (codeFromMessage && FIREBASE_ERROR_MESSAGES[codeFromMessage]) {
+            return FIREBASE_ERROR_MESSAGES[codeFromMessage];
+        }
+
+        const cleanedMessage = error.message
+            .replace(/^Firebase:\s*/i, "")
+            .replace(FIREBASE_CODE_PATTERN, "")
+            .trim();
+
+        return cleanedMessage || fallbackMessage;
+    }
+
+    const unknownCode = (error as any)?.code as string | undefined;
+    if (unknownCode && FIREBASE_ERROR_MESSAGES[unknownCode]) {
+        return FIREBASE_ERROR_MESSAGES[unknownCode];
+    }
+
+    return fallbackMessage;
+}
+
+function throwHumanReadableFirebaseError(
+    error: unknown,
+    fallbackMessage: string
+): never {
+    throw new Error(getHumanReadableFirebaseError(error, fallbackMessage));
+}
+
 const firebaseConfig = {
     apiKey: "AIzaSyCqFT43zEqJQ_uqat5MYkxOQNVT0LRdpG4",
     authDomain: "carrom-scoreboard.firebaseapp.com",
@@ -41,10 +105,9 @@ export async function signUp(
         });
         
         return user;
-    } catch (error: any) {
-        const errorMessage = error.message;
-        console.error(`SignUp Error: ${errorMessage}`);
-        throw error;
+    } catch (error) {
+        console.error("SignUp Error:", error);
+        throwHumanReadableFirebaseError(error, "Unable to create your account right now. Please try again.");
     }
 }
 
@@ -52,10 +115,9 @@ export async function signIn(email: string, password: string) {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         return userCredential.user;
-    } catch (error: any) {
-        const errorMessage = error.message;
-        console.error(`SignIn Error: ${errorMessage}`);
-        throw error;
+    } catch (error) {
+        console.error("SignIn Error:", error);
+        throwHumanReadableFirebaseError(error, "Unable to log in right now. Please try again.");
     }
 }
 
@@ -75,10 +137,9 @@ export async function logOut() {
     try {
         await signOut(auth);
         console.log("User signed out successfully");
-    } catch (error: any) {
-        const errorMessage = error.message;
-        console.error(`Sign Out Error: ${errorMessage}`);
-        throw error;
+    } catch (error) {
+        console.error("Sign Out Error:", error);
+        throwHumanReadableFirebaseError(error, "Unable to log out right now. Please try again.");
     }
 }
 
@@ -194,7 +255,7 @@ export async function createBoard(
         return newBoardRef.key || "";
     } catch (error) {
         console.error("Error creating board:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to create the board. Please try again.");
     }
 }
 
@@ -212,7 +273,7 @@ export async function updateBoardScores(
         });
     } catch (error) {
         console.error("Error updating board scores:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to update scores. Please try again.");
     }
 }
 
@@ -228,7 +289,7 @@ export async function completeBoardMatch(
         });
     } catch (error) {
         console.error("Error completing board match:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to mark this match as completed. Please try again.");
     }
 }
 
@@ -272,7 +333,7 @@ export async function updatePlayerPoints(
         });
     } catch (error) {
         console.error("Error updating player points:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to update player points right now.");
     }
 }
 
@@ -291,7 +352,7 @@ export async function updateUserProfile(
         });
     } catch (error) {
         console.error("Error updating user profile:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to update your profile right now.");
     }
 }
 // Get user profile including admin status
@@ -360,7 +421,7 @@ export async function createEventAsAdmin(
         return newEventRef.key || "";
     } catch (error) {
         console.error("Error creating event:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to create the event right now. Please try again.");
     }
 }
 
@@ -386,7 +447,7 @@ export async function updateBoardScoresAsAdmin(
         });
     } catch (error) {
         console.error("Error updating board scores:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to update board scores right now.");
     }
 }
 
@@ -409,7 +470,7 @@ export async function completeBoardMatchAsAdmin(
         });
     } catch (error) {
         console.error("Error completing board match:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to complete this board right now.");
     }
 }
 
@@ -436,7 +497,7 @@ export async function createBoardAsAdmin(
         return newBoardRef.key || "";
     } catch (error) {
         console.error("Error creating board:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to create this board right now.");
     }
 }
 
@@ -524,7 +585,7 @@ export async function generateTournamentBracketAsAdmin(
         };
     } catch (error) {
         console.error("Error generating tournament bracket:", error);
-        throw error;
+        throwHumanReadableFirebaseError(error, "Unable to generate the tournament bracket right now.");
     }
 }
 

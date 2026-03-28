@@ -12,6 +12,7 @@ import {
     getAllEvents,
     onEventBoardsUpdate,
     generateTournamentBracketAsAdmin,
+    getHumanReadableFirebaseError,
 } from "../src/firebase";
 
 export function meta({}: Route.MetaArgs) {
@@ -105,7 +106,7 @@ export default function AdminPage() {
         try {
             await logOut();
             setUser(null);
-            navigate("/");
+            navigate("/", { state: { flashMessage: "Logged out successfully!" } });
         } catch (error) {
             console.error("Error logging out:", error);
         }
@@ -135,8 +136,8 @@ export default function AdminPage() {
             // Refresh events
             const allEvents = await getAllEvents();
             setEvents(allEvents);
-        } catch (err: any) {
-            setError(err.message || "Failed to create event");
+        } catch (err) {
+            setError(getHumanReadableFirebaseError(err, "Failed to create event"));
         } finally {
             setCreateEventLoading(false);
         }
@@ -164,8 +165,8 @@ export default function AdminPage() {
             setBoardName("");
             setPlayer1Name("");
             setPlayer2Name("");
-        } catch (err: any) {
-            setError(err.message || "Failed to create board");
+        } catch (err) {
+            setError(getHumanReadableFirebaseError(err, "Failed to create board"));
         } finally {
             setCreateBoardLoading(false);
         }
@@ -190,8 +191,8 @@ export default function AdminPage() {
             );
 
             setSuccess("Score updated successfully!");
-        } catch (err: any) {
-            setError(err.message || "Failed to update score");
+        } catch (err) {
+            setError(getHumanReadableFirebaseError(err, "Failed to update score"));
         } finally {
             setUpdateScoreLoading(false);
         }
@@ -207,8 +208,8 @@ export default function AdminPage() {
 
             await completeBoardMatchAsAdmin(user.uid, selectedEventId, boardId);
             setSuccess("Board marked as completed!");
-        } catch (err: any) {
-            setError(err.message || "Failed to complete board");
+        } catch (err) {
+            setError(getHumanReadableFirebaseError(err, "Failed to complete board"));
         }
     };
 
@@ -229,8 +230,8 @@ export default function AdminPage() {
             if (event) {
                 setSelectedEventId(selectedEventId); // Trigger refresh
             }
-        } catch (err: any) {
-            setError(err.message || "Failed to generate bracket");
+        } catch (err) {
+            setError(getHumanReadableFirebaseError(err, "Failed to generate bracket"));
         } finally {
             setGenerateBracketLoading(false);
         }
@@ -260,20 +261,26 @@ export default function AdminPage() {
                     <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <div>
                             <p className="text-xs uppercase tracking-[0.28em] text-[var(--caca-ink-soft)]">
-                                CACA Admin
+                                Capital Area Carrom Association
                             </p>
                             <p className="font-display text-2xl leading-none text-[var(--caca-ink)]">
-                                Control Panel
+                                CACA
                             </p>
                         </div>
                     </Link>
                     <nav aria-label="Primary actions" className="flex flex-wrap gap-2">
                         <span className="flex items-center px-3 py-2 text-sm text-[var(--caca-ink-soft)]">
-                            {user?.email}
+                            Welcome, {user?.displayName || user?.email}!
                         </span>
                         <button onClick={handleLogout} className="caca-btn caca-btn-muted">
-                            Logout
+                            Log out
                         </button>
+                        <Link className="caca-btn caca-btn-secondary" to="/register-event">
+                            Register Event
+                        </Link>
+                        <Link className="caca-btn caca-btn-primary" to="/scoreboard">
+                            View Live Scoreboard
+                        </Link>
                         <Link className="caca-btn caca-btn-primary" to="/">
                             Home
                         </Link>
@@ -289,7 +296,7 @@ export default function AdminPage() {
                             Admin Access
                         </p>
                         <h1 className="font-display text-5xl leading-none text-[var(--caca-ink)] sm:text-6xl">
-                            Management
+                            Control Panel
                         </h1>
                         <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--caca-ink-soft)]">
                             Create events, manage boards, and update live scores
@@ -310,7 +317,18 @@ export default function AdminPage() {
                             color: "var(--caca-accent)",
                         }}
                     >
-                        {error}
+                        <div className="flex items-center justify-between gap-3">
+                            <span>{error}</span>
+                            <button
+                                type="button"
+                                onClick={() => setError("")}
+                                className="text-xs font-semibold hover:opacity-80"
+                                aria-label="Dismiss notification"
+                                style={{ color: "var(--caca-accent)" }}
+                            >
+                                ×
+                            </button>
+                        </div>
                     </div>
                 )}
                 {success && (
@@ -322,7 +340,18 @@ export default function AdminPage() {
                             color: "#22c55e",
                         }}
                     >
-                        {success}
+                        <div className="flex items-center justify-between gap-3">
+                            <span>{success}</span>
+                            <button
+                                type="button"
+                                onClick={() => setSuccess("")}
+                                className="text-xs font-semibold hover:opacity-80"
+                                aria-label="Dismiss notification"
+                                style={{ color: "#22c55e" }}
+                            >
+                                ×
+                            </button>
+                        </div>
                     </div>
                 )}
 
